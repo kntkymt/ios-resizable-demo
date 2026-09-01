@@ -15,6 +15,8 @@ The app has two tabs in a `TabView`:
 | Xcode26_ios27 | Xcode 26 | iOS 27 |
 | Xcode27_ios27 | Xcode 27 | iOS 27 |
 
+Note that there is no Xcode27_ios26 combination: it produces the same result as Xcode26_ios26, and in theory, behavior newly introduced in a newer SDK cannot take effect on an older OS that has already shipped.
+
 Screenshots are located at `Resources/<environment>/<device configuration>/<method>.png`.
 
 ## Xcode27_ios27
