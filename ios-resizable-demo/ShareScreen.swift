@@ -27,6 +27,12 @@ struct ShareScreen: View {
                     } label: {
                         Label("Share with UIKit", systemImage: "square.and.arrow.up")
                     }
+                    .background(
+                        ActivityViewControllerPresenter(
+                            isPresented: $isUIKitSharePresented,
+                            activityItems: ["This is a sample text shared via the UIKit UIActivityViewController."]
+                        )
+                    )
                 }
 
                 Section("Share with SwiftUI (ShareLink)") {
@@ -109,12 +115,6 @@ struct ShareScreen: View {
                 }
             }
             .navigationTitle("Share Sample")
-            .background(
-                ActivityViewControllerPresenter(
-                    isPresented: $isUIKitSharePresented,
-                    activityItems: ["This is a sample text shared via the UIKit UIActivityViewController."]
-                )
-            )
         }
     }
 
@@ -249,15 +249,11 @@ struct ActivityViewControllerPresenter: UIViewControllerRepresentable {
         )
 
         // iPad ではポップオーバー起点の指定が必須。
+        // この view はボタンの .background として同じフレームに配置されるため、
+        // bounds をそのまま sourceRect にするとポップオーバーの矢印がボタンを指す。
         if let popover = activityController.popoverPresentationController {
             popover.sourceView = uiViewController.view
-            popover.sourceRect = CGRect(
-                x: uiViewController.view.bounds.midX,
-                y: uiViewController.view.bounds.midY,
-                width: 0,
-                height: 0
-            )
-            popover.permittedArrowDirections = []
+            popover.sourceRect = uiViewController.view.bounds
         }
 
         activityController.completionWithItemsHandler = { _, _, _, _ in
