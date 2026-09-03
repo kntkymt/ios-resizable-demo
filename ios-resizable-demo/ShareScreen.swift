@@ -7,6 +7,8 @@ struct ShareScreen: View {
     @State private var isPopoverPresented = false
     @State private var isConfirmationDialogPresented = false
     @State private var adaptation: AdaptationOption = .automatic
+    @State private var selectedDetents: Set<DetentOption> = []
+    @State private var detentHeightText: String = "200"
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
@@ -34,6 +36,27 @@ struct ShareScreen: View {
                 }
 
                 Section(".sheet Demo") {
+                    ForEach(DetentOption.allCases) { option in
+                        Toggle(isOn: detentBinding(for: option)) {
+                            if option == .height {
+                                HStack {
+                                    Text(option.title)
+                                    TextField("height", text: $detentHeightText)
+                                        .keyboardType(.numberPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .onChange(of: detentHeightText) { _, newValue in
+                                            let filtered = newValue.filter(\.isWholeNumber)
+                                            if filtered != newValue {
+                                                detentHeightText = filtered
+                                            }
+                                        }
+                                }
+                            } else {
+                                Text(option.title)
+                            }
+                        }
+                    }
+
                     Button {
                         isSheetPresented = true
                     } label: {
@@ -41,8 +64,7 @@ struct ShareScreen: View {
                     }
                     .sheet(isPresented: $isSheetPresented) {
                         sheetContent
-                            .presentationDetents([.medium, .large])
-                            .presentationDragIndicator(.visible)
+                            .presentationDetents(presentationDetents)
                     }
                 }
 
@@ -114,6 +136,29 @@ struct ShareScreen: View {
         .frame(minWidth: 260)
     }
 
+    // 選択が空だと .presentationDetents が無効になるため、その場合はデフォルトの [.large] を使う。
+    private var presentationDetents: Set<PresentationDetent> {
+        selectedDetents.isEmpty ? [.large] : Set(selectedDetents.map { $0.value(height: detentHeight) })
+    }
+
+    // 入力が空・不正な場合は 200pt にフォールバックする。
+    private var detentHeight: CGFloat {
+        CGFloat(Double(detentHeightText) ?? 200)
+    }
+
+    private func detentBinding(for option: DetentOption) -> Binding<Bool> {
+        Binding(
+            get: { selectedDetents.contains(option) },
+            set: { isOn in
+                if isOn {
+                    selectedDetents.insert(option)
+                } else {
+                    selectedDetents.remove(option)
+                }
+            }
+        )
+    }
+
     private func infoRow(_ title: String, _ value: String) -> some View {
         HStack {
             Text(title)
@@ -129,6 +174,30 @@ struct ShareScreen: View {
         case .compact: "compact"
         case .regular: "regular"
         default: "unknown"
+        }
+    }
+}
+
+enum DetentOption: String, CaseIterable, Identifiable {
+    case medium
+    case large
+    case height
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .medium: "medium"
+        case .large: "large"
+        case .height: "height"
+        }
+    }
+
+    func value(height: CGFloat) -> PresentationDetent {
+        switch self {
+        case .medium: .medium
+        case .large: .large
+        case .height: .height(height)
         }
     }
 }
