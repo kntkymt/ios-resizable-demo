@@ -90,6 +90,7 @@ struct ShareScreen: View {
                     .popover(isPresented: $isPopoverPresented) {
                         popoverContent
                             .presentationCompactAdaptation(adaptation.value)
+                            .presentationDetents([.medium])
                     }
                 }
 
