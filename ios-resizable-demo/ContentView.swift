@@ -23,34 +23,11 @@ struct ContentView: View {
             Tab("CRF", systemImage: "arrow.left.and.right.square") {
                 ContainerRelativeFrameScreen()
             }
-            Tab("Layout", systemImage: "square") {
-                ArrangementScreen()
+            Tab("Content Area", systemImage: "square.dashed") {
+                ContentAreaScreen()
             }
-        }
-    }
-}
-
-struct ArrangementScreen: View {
-    @State var addnavigationTitle = true
-
-    var content: some View {
-        ZStack {
-            Color.red
-
-            Toggle("Add navigation title", isOn: $addnavigationTitle)
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            if addnavigationTitle {
-                content
-                    .navigationTitle("Navigation Title")
-                    .navigationBarTitleDisplayMode(.inline)
-            }
-            else {
-                content
-                    .navigationBarTitleDisplayMode(.inline)
+            Tab("Arrangement View", systemImage: "rectangle.split.2x1") {
+                ArrangementViewScreen()
             }
         }
     }
