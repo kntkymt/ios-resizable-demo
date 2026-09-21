@@ -20,9 +20,6 @@ struct ContentView: View {
             Tab("Parameters", systemImage: "ruler") {
                 ParametersScreen()
             }
-            Tab("CRF", systemImage: "arrow.left.and.right.square") {
-                ContainerRelativeFrameScreen()
-            }
             Tab("Content Area", systemImage: "square.dashed") {
                 ContentAreaScreen()
             }

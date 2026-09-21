@@ -3,11 +3,16 @@ import UIKit
 
 struct ContentAreaScreen: View {
     @State var addnavigationTitle = true
+    @State var disableToolbarVerticalBehavior = false
 
     var content: some View {
         Group {
             if #available(iOS 27.1, *) {
-                ContentAreaGeometryView(addNavigationTitle: $addnavigationTitle)
+                ContentAreaGeometryView(
+                    addNavigationTitle: $addnavigationTitle,
+                    disableToolbarVerticalBehavior: $disableToolbarVerticalBehavior
+                )
+                .toolbarVerticalBehavior(disableToolbarVerticalBehavior ? .disabled : .automatic)
             } else {
                 ZStack {
                     Color.red
@@ -37,6 +42,7 @@ struct ContentAreaScreen: View {
 @available(iOS 27.1, *)
 struct ContentAreaGeometryView: View {
     @Binding var addNavigationTitle: Bool
+    @Binding var disableToolbarVerticalBehavior: Bool
     @State private var reservedRegions: [UIView.ReservedRegion] = []
     @State private var cornerInsets = RectangleCornerInsets()
 
@@ -117,6 +123,9 @@ struct ContentAreaGeometryView: View {
     private func infoPanel(safeAreaInsets: EdgeInsets) -> some View {
         VStack(spacing: 8) {
             Toggle("Add navigation title", isOn: $addNavigationTitle)
+                .fixedSize()
+
+            Toggle("Disable vertical control", isOn: $disableToolbarVerticalBehavior)
                 .fixedSize()
                 .padding(.bottom, 8)
 
