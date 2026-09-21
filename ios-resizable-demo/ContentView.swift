@@ -17,8 +17,8 @@ struct ContentView: View {
             Tab("Share", systemImage: "square.and.arrow.up") {
                 ShareScreen()
             }
-            Tab("Size Class", systemImage: "ruler") {
-                SizeClassScreen()
+            Tab("Parameters", systemImage: "ruler") {
+                ParametersScreen()
             }
             Tab("CRF", systemImage: "arrow.left.and.right.square") {
                 ContainerRelativeFrameScreen()
