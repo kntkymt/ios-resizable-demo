@@ -14,8 +14,8 @@ struct MyApp: App {
 struct ContentView: View {
     var body: some View {
         TabView {
-            Tab("Share", systemImage: "square.and.arrow.up") {
-                ShareScreen()
+            Tab("Presentation Styles", systemImage: "rectangle.portrait.on.rectangle.portrait") {
+                PresentationStylesScreen()
             }
             Tab("Parameters", systemImage: "ruler") {
                 ParametersScreen()
