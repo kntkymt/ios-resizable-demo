@@ -49,17 +49,14 @@ struct ContentAreaGeometryView: View {
     var body: some View {
         GeometryReader { proxy in
             let safeAreaInsets = proxy.safeAreaInsets
-            // The full container bounds including the safe area
             let fullSize = CGSize(
                 width: proxy.size.width + safeAreaInsets.leading + safeAreaInsets.trailing,
                 height: proxy.size.height + safeAreaInsets.top + safeAreaInsets.bottom
             )
 
             ZStack(alignment: .topLeading) {
-                // Outside of the safe area
                 Color.orange
 
-                // Safe area
                 Color.cyan
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .offset(x: safeAreaInsets.leading, y: safeAreaInsets.top)

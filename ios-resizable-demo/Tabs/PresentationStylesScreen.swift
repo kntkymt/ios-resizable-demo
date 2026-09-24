@@ -6,6 +6,7 @@ struct PresentationStylesScreen: View {
     @State private var isFullScreenCoverPresented = false
     @State private var isPopoverPresented = false
     @State private var isConfirmationDialogPresented = false
+    @State private var isReferenceAlertPresented = false
     @State private var modalStyle: ModalStyleOption = .automatic
     @State private var adaptation: AdaptationOption = .automatic
     @State private var selectedDetents: Set<DetentOption> = []
@@ -70,7 +71,6 @@ struct PresentationStylesScreen: View {
                                     message: "modalPresentationStyle: \(modalStyle.title)"
                                 )
                             )
-                            // クローズボタンからは UIKit で直接 dismiss する。
                             hostingController.rootView.onDismiss = { [weak hostingController] in
                                 hostingController?.dismiss(animated: true)
                             }
@@ -87,6 +87,45 @@ struct PresentationStylesScreen: View {
                         } label: {
                             Label("Present with UIKit", systemImage: "rectangle.portrait.on.rectangle.portrait")
                         }
+                    }
+                }
+
+                Section("Dialog Demo") {
+                    ViewControllerProvider { controller in
+                        Button {
+                            guard let controller else { return }
+
+                            let hostingController = UIHostingController(rootView: CustomDialogScreen())
+                            hostingController.rootView.onDismiss = { [weak hostingController] in
+                                hostingController?.dismiss(animated: true)
+                            }
+                            // .fullScreen だと背面の VC のビューが取り除かれて透けないため、
+                            // フルスクリーンサイズで背面を残す .overFullScreen を使う。
+                            hostingController.modalPresentationStyle = .overFullScreen
+                            // デフォルトの coverVertical だと全画面がスライドしてしまうので、
+                            // ダイアログらしくフェードで表示する。
+                            hostingController.modalTransitionStyle = .crossDissolve
+                            // UIHostingController の view は不透明な背景を持つため、透明にする。
+                            hostingController.view.backgroundColor = .clear
+
+                            controller.present(hostingController, animated: true)
+                        } label: {
+                            Label("Show Custom Dialog", systemImage: "rectangle.center.inset.filled")
+                        }
+                    }
+
+                    Button {
+                        isReferenceAlertPresented = true
+                    } label: {
+                        Label("Show Native Alert", systemImage: "exclamationmark.bubble")
+                    }
+                    .alert(
+                        "Standard Alert",
+                        isPresented: $isReferenceAlertPresented
+                    ) {
+                        Button("OK") {}
+                    } message: {
+                        Text("This is a standard alert for comparing the hinge-avoiding behavior.")
                     }
                 }
 
@@ -206,7 +245,6 @@ struct PresentationStylesScreen: View {
         selectedDetents.isEmpty ? [.large] : Set(selectedDetents.map { $0.value(height: detentHeight) })
     }
 
-    // 入力が空・不正な場合は 200pt にフォールバックする。
     private var detentHeight: CGFloat {
         CGFloat(Double(detentHeightText) ?? 200)
     }
@@ -243,9 +281,6 @@ struct PresentationStylesScreen: View {
     }
 }
 
-// モーダル表示(.sheet / .fullScreenCover / .popover / UIKit present)で出す画面の共通ビュー。
-// NavigationStack + navigationTitle + ツールバーのクローズボタンを付けて、
-// モーダル内でのナビゲーションバーの挙動を確認できるようにする。
 private struct PresentedDemoScreen: View {
     let title: String
     let message: String
@@ -286,6 +321,67 @@ private struct PresentedDemoScreen: View {
                 }
             }
         }
+    }
+}
+
+private struct CustomDialogScreen: View {
+    // UIKit present では SwiftUI の dismiss で状態が同期できないため UIKit 側で閉じる。
+    var onDismiss: (() -> Void)? = nil
+
+    var body: some View {
+        ZStack {
+            // スクリムは視覚効果のみなので hinge をまたいでも問題なく、全画面のままにする。
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onDismiss?()
+                }
+
+            if #available(iOS 27.1, *) {
+                ArrangementView {
+                    Color.clear
+                } secondary: {
+                    dialogCard
+                        // secondary は固有サイズのまま左上に置かれるため、
+                        // 領域いっぱいに広げてその中央にカードを配置する。
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // 標準の alert に合わせて、折り曲げ時は下側の region へ寄せる。
+                        .overlayArrangementEdge(.bottom)
+                }
+                .arrangementViewStyle(.overlay)
+            } else {
+                dialogCard
+            }
+        }
+    }
+
+    private var dialogCard: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "sparkles")
+                .font(.largeTitle)
+                .foregroundStyle(.tint)
+
+            Text("Custom Dialog")
+                .font(.headline)
+
+            Text("This dialog is presented with UIKit present using .overFullScreen, so the background stays visible through the transparent area.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                onDismiss?()
+            } label: {
+                Text("Close")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(24)
+        .frame(maxWidth: 300)
+        .background(.background, in: RoundedRectangle(cornerRadius: 20))
+        .shadow(radius: 24)
+        .padding(40)
     }
 }
 

@@ -26,7 +26,6 @@ struct ParametersScreen: View {
                     let keyWindowBounds = windowScenes.first?.coordinateSpace.bounds ?? CGRect()
                     boundsRow("keyWindow.bounds", keyWindowBounds)
 
-                    // keyWindow 以外のウィンドウ（キーボードやステータスバー用など）も列挙する。
                     let otherWindows = windowScenes.flatMap(\.windows).filter { !$0.isKeyWindow }
                     ForEach(otherWindows, id: \.self) { window in
                         boundsRow(String(describing: type(of: window)), window.bounds)
@@ -69,7 +68,6 @@ struct ParametersScreen: View {
     }
 }
 
-/// iOS 27.1 で追加された iPhone Duo 向けのパラメーターを表示するセクション。
 @available(iOS 27.1, *)
 private struct DuoParametersSection: View {
     @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge

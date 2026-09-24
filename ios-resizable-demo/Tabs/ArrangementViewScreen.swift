@@ -13,8 +13,6 @@ struct ArrangementViewScreen: View {
     }
 }
 
-/// ArrangementView の style / axes / edge の組み合わせを切り替えて、
-/// primary / secondary がどうレイアウトされるかを色付きパネルで確認するデモ。
 @available(iOS 27.1, *)
 private struct ArrangementDemoView: View {
     private enum StyleOption: String, CaseIterable, Identifiable {
@@ -110,7 +108,6 @@ private struct ArrangementDemoView: View {
             ColorPanel(title: "Primary", color: .blue)
         } secondary: {
             ColorPanel(title: "Secondary", color: .orange)
-                // overlay 時に secondary をどの辺に寄せるかの指定。
                 .overlayArrangementEdge(horizontalEdge.edge)
                 .overlayArrangementEdge(verticalEdge.edge)
         }
@@ -174,7 +171,6 @@ private struct ArrangementDemoView: View {
     }
 }
 
-/// 与えられた領域いっぱいに広がり、自身のサイズを表示する色付きパネル。
 private struct ColorPanel: View {
     let title: String
     let color: Color
