@@ -45,6 +45,20 @@ struct SearchableScreen: View {
                         customSearchField
                     }
                     trailingButtons
+                    
+                    ToolbarItem(placement: .bottomBar) {
+                        Button {
+                        } label: {
+                            Image(systemName: "line.3.horizontal.decrease")
+                        }
+                    }
+                    
+//                    ToolbarItem(placement: .) {
+//                        Button {
+//                        } label: {
+//                            Image(systemName: "line.3.horizontal.decrease")
+//                        }
+//                    }
                 }
         } else {
             fruitsList

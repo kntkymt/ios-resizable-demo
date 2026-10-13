@@ -219,10 +219,11 @@ struct PresentationStylesScreen: View {
     }
 
     private var sheetContent: some View {
-        PresentedDemoScreen(
-            title: "Sheet",
-            message: "This is the content of the .sheet"
-        )
+        PresentationStylesScreen()
+//        PresentedDemoScreen(
+//            title: "Sheet",
+//            message: "This is the content of the .sheet"
+//        )
     }
 
     private var fullScreenCoverContent: some View {
@@ -337,6 +338,8 @@ private struct CustomDialogScreen: View {
                     onDismiss?()
                 }
 
+            // iOS 27.1 SDK (Xcode 27.1) 以上でのみコンパイルする。Xcode 27.0 でもビルドできるようにするため。
+            #if canImport(SwiftUI, _version: 8.0.85)
             if #available(iOS 27.1, *) {
                 ArrangementView {
                     Color.clear
@@ -352,6 +355,9 @@ private struct CustomDialogScreen: View {
             } else {
                 dialogCard
             }
+            #else
+            dialogCard
+            #endif
         }
     }
 

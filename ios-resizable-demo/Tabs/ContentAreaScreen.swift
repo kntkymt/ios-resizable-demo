@@ -1,12 +1,16 @@
 import SwiftUI
 import UIKit
 
+// `canImport(SwiftUI, _version: 8.0.85)` は iOS 27.1 SDK (Xcode 27.1) 以上で真になる。
+// Xcode 27.0 (iOS 27.0 SDK) でもビルドできるよう、27.1 で追加された API だけこの条件で分けている。
+
 struct ContentAreaScreen: View {
     @State var addnavigationTitle = true
     @State var disableToolbarVerticalBehavior = false
 
     var content: some View {
         Group {
+            #if canImport(SwiftUI, _version: 8.0.85)
             if #available(iOS 27.1, *) {
                 ContentAreaGeometryView(
                     addNavigationTitle: $addnavigationTitle,
@@ -14,14 +18,28 @@ struct ContentAreaScreen: View {
                 )
                 .toolbarVerticalBehavior(disableToolbarVerticalBehavior ? .disabled : .automatic)
             } else {
-                ZStack {
-                    Color.red
-
-                    Toggle("Add navigation title", isOn: $addnavigationTitle)
-                }
+                fallback
             }
+            #else
+            if #available(iOS 26.0, *) {
+                ContentAreaGeometryView(
+                    addNavigationTitle: $addnavigationTitle,
+                    disableToolbarVerticalBehavior: $disableToolbarVerticalBehavior
+                )
+            } else {
+                fallback
+            }
+            #endif
         }
         .toolbarBackground(Color.blue, for: .navigationBar)
+    }
+
+    private var fallback: some View {
+        ZStack {
+            Color.red
+
+            Toggle("Add navigation title", isOn: $addnavigationTitle)
+        }
     }
 
     var body: some View {
@@ -39,11 +57,17 @@ struct ContentAreaScreen: View {
     }
 }
 
+#if canImport(SwiftUI, _version: 8.0.85)
 @available(iOS 27.1, *)
+#else
+@available(iOS 26.0, *)
+#endif
 struct ContentAreaGeometryView: View {
     @Binding var addNavigationTitle: Bool
     @Binding var disableToolbarVerticalBehavior: Bool
+    #if canImport(SwiftUI, _version: 8.0.85)
     @State private var reservedRegions: [UIView.ReservedRegion] = []
+    #endif
     @State private var cornerInsets = RectangleCornerInsets()
 
     var body: some View {
@@ -66,18 +90,18 @@ struct ContentAreaGeometryView: View {
                 cornerMark(cornerInsets.bottomLeading, alignment: .bottomLeading)
                 cornerMark(cornerInsets.bottomTrailing, alignment: .bottomTrailing)
 
+                #if canImport(SwiftUI, _version: 8.0.85)
                 reservedRegionMarks
+                #endif
 
-                infoPanel(safeAreaInsets: safeAreaInsets)
+                infoPanel(safeAreaInsets: safeAreaInsets, safeAreaSize: proxy.size, fullSize: fullSize)
             }
             .frame(width: fullSize.width, height: fullSize.height)
             // Shift the drawing space so its origin matches the full container bounds
             .offset(x: -safeAreaInsets.leading, y: -safeAreaInsets.top)
         }
         .background {
-            // Reserved regions are only exposed through UIKit,
-            // so read them from a full-bleed UIView sharing the same coordinate space
-            ReservedRegionReaderView(regions: $reservedRegions)
+            fullBleedReader
                 // containerCornerInsets reports only the portion overlapping this view,
                 // so read it from the full-bleed view rather than the safe-area-inset one
                 .onGeometryChange(for: RectangleCornerInsets.self) { fullProxy in
@@ -89,12 +113,24 @@ struct ContentAreaGeometryView: View {
         }
     }
 
+    @ViewBuilder
+    private var fullBleedReader: some View {
+        #if canImport(SwiftUI, _version: 8.0.85)
+        // Reserved regions are only exposed through UIKit,
+        // so read them from a full-bleed UIView sharing the same coordinate space
+        ReservedRegionReaderView(regions: $reservedRegions)
+        #else
+        Color.clear
+        #endif
+    }
+
     private func cornerMark(_ size: CGSize, alignment: Alignment) -> some View {
         Color.purple.opacity(0.6)
             .frame(width: size.width, height: size.height)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
     }
 
+    #if canImport(SwiftUI, _version: 8.0.85)
     private var reservedRegionMarks: some View {
         // Border + light fill so the corner inset marks underneath stay visible
         ForEach(reservedRegions) { region in
@@ -116,8 +152,9 @@ struct ContentAreaGeometryView: View {
                 .position(x: region.frame.midX, y: region.frame.midY)
         }
     }
+    #endif
 
-    private func infoPanel(safeAreaInsets: EdgeInsets) -> some View {
+    private func infoPanel(safeAreaInsets: EdgeInsets, safeAreaSize: CGSize, fullSize: CGSize) -> some View {
         VStack(spacing: 8) {
             Toggle("Add navigation title", isOn: $addNavigationTitle)
                 .fixedSize()
@@ -132,6 +169,11 @@ struct ContentAreaGeometryView: View {
             Text("bottom: \(points(safeAreaInsets.bottom))")
             Text("trailing: \(points(safeAreaInsets.trailing))")
 
+            heading("size", color: .cyan)
+                .padding(.top, 8)
+            Text("safe area: \(sizeText(safeAreaSize))")
+            Text("full: \(sizeText(fullSize))")
+
             heading("containerCornerInsets", color: .purple)
                 .padding(.top, 8)
             Text("topLeading: \(sizeText(cornerInsets.topLeading))")
@@ -139,6 +181,7 @@ struct ContentAreaGeometryView: View {
             Text("bottomLeading: \(sizeText(cornerInsets.bottomLeading))")
             Text("bottomTrailing: \(sizeText(cornerInsets.bottomTrailing))")
 
+            #if canImport(SwiftUI, _version: 8.0.85)
             heading("reservedRegions", color: .red)
                 .padding(.top, 8)
             if reservedRegions.isEmpty {
@@ -150,6 +193,7 @@ struct ContentAreaGeometryView: View {
                         .font(.caption)
                 }
             }
+            #endif
         }
         .padding(24)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24))
@@ -179,6 +223,7 @@ struct ContentAreaGeometryView: View {
     }
 }
 
+#if canImport(SwiftUI, _version: 8.0.85)
 @available(iOS 27.1, *)
 private struct ReservedRegionReaderView: UIViewRepresentable {
     @Binding var regions: [UIView.ReservedRegion]
@@ -218,3 +263,4 @@ private struct ReservedRegionReaderView: UIViewRepresentable {
         }
     }
 }
+#endif

@@ -26,8 +26,10 @@ struct ContentView: View {
             Tab("Arrangement View", systemImage: "rectangle.split.2x1") {
                 ArrangementViewScreen()
             }
-            Tab("Searchable", systemImage: "magnifyingglass", role: .search) {
-                SearchableScreen()
+            if #available(anyAppleOS 27.0, *) {
+                Tab("Searchable", systemImage: "magnifyingglass", role: .prominent) {
+                    SearchableScreen()
+                }
             }
         }
     }

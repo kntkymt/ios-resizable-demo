@@ -3,14 +3,23 @@ import SwiftUI
 
 struct ArrangementViewScreen: View {
     var body: some View {
+        // iOS 27.1 SDK (Xcode 27.1) 以上でのみコンパイルする。Xcode 27.0 でもビルドできるようにするため。
+        #if canImport(SwiftUI, _version: 8.0.85)
         if #available(iOS 27.1, *) {
             ArrangementDemoView()
         } else {
-            ContentUnavailableView(
-                "ArrangementView は iOS 27.1 以降で利用できます",
-                systemImage: "rectangle.split.2x1"
-            )
+            unavailable
         }
+        #else
+        unavailable
+        #endif
+    }
+
+    private var unavailable: some View {
+        ContentUnavailableView(
+            "ArrangementView は iOS 27.1 以降で利用できます",
+            systemImage: "rectangle.split.2x1"
+        )
     }
 }
 
@@ -216,6 +225,7 @@ private struct PaneConfig {
     var layoutPriority: Double = 0
 }
 
+#if canImport(SwiftUI, _version: 8.0.85)
 /// `PaneConfig` の内容をペインの中身へ適用する。
 ///
 /// すべての modifier を無条件に適用し、未指定は `nil` / `false` を渡すことで表現している。
@@ -656,3 +666,4 @@ private struct ColorPanel: View {
         }
     }
 }
+#endif

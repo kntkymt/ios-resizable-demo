@@ -10,9 +10,12 @@ struct ParametersScreen: View {
     var body: some View {
         NavigationStack {
             List {
+                // iOS 27.1 SDK (Xcode 27.1) 以上でのみコンパイルする。Xcode 27.0 でもビルドできるようにするため。
+                #if canImport(SwiftUI, _version: 8.0.85)
                 if #available(iOS 27.1, *) {
                     DuoParametersSection()
                 }
+                #endif
 
                 Section("Size Class") {
                     infoRow("horizontal", label(for: horizontalSizeClass))
@@ -68,6 +71,7 @@ struct ParametersScreen: View {
     }
 }
 
+#if canImport(SwiftUI, _version: 8.0.85)
 @available(iOS 27.1, *)
 private struct DuoParametersSection: View {
     @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge
@@ -95,3 +99,4 @@ private struct DuoParametersSection: View {
         }
     }
 }
+#endif
