@@ -17,9 +17,6 @@ struct ContentView: View {
             Tab("Presentation Styles", systemImage: "rectangle.portrait.on.rectangle.portrait") {
                 PresentationStylesScreen()
             }
-            Tab("Parameters", systemImage: "ruler") {
-                ParametersScreen()
-            }
             Tab("Content Area", systemImage: "square.dashed") {
                 ContentAreaScreen()
             }
