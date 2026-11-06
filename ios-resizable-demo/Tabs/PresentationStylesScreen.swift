@@ -2,7 +2,11 @@ import SwiftUI
 import UIKit
 
 struct PresentationStylesScreen: View {
+    // sheet でネストして開かれた場合に true。閉じるボタンの表示に使う。
+    var isNested = false
+
     @State private var isSheetPresented = false
+    @State private var isNestedScreenPresented = false
     @State private var isFullScreenCoverPresented = false
     @State private var isPopoverPresented = false
     @State private var isConfirmationDialogPresented = false
@@ -14,6 +18,7 @@ struct PresentationStylesScreen: View {
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -193,6 +198,18 @@ struct PresentationStylesScreen: View {
                     }
                 }
 
+                Section("Nested Sheet Demo") {
+                    Button {
+                        isNestedScreenPresented = true
+                    } label: {
+                        Label("Show Presentation Styles in Sheet", systemImage: "rectangle.stack")
+                    }
+                    // sheet の中からさらに sheet を開いたときの挙動を確認するため、この画面自身を開く。
+                    .sheet(isPresented: $isNestedScreenPresented) {
+                        PresentationStylesScreen(isNested: true)
+                    }
+                }
+
                 Section(".confirmationDialog Demo") {
                     Button {
                         isConfirmationDialogPresented = true
@@ -215,6 +232,17 @@ struct PresentationStylesScreen: View {
                 }
             }
             .navigationTitle("Presentation Styles")
+            .toolbar {
+                if isNested {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                    }
+                }
+            }
         }
     }
 
