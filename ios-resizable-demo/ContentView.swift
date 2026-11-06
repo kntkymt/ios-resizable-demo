@@ -2,7 +2,7 @@ import SwiftUI
 import Playgrounds
 import AppIntents
 
-@main
+// エントリポイントはmain.swift
 struct MyApp: App {
     var body: some Scene {
         WindowGroup {
