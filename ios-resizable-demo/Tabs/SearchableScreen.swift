@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SearchableScreen: View {
     @State private var searchText = ""
-    @State private var usesCustomSearchField = true
+    @State private var searchFieldType: SearchFieldType = .searchable
     @State private var barContentWidth: CGFloat = 0
     @FocusState private var isSearchFieldFocused: Bool
 
@@ -38,31 +38,43 @@ struct SearchableScreen: View {
 
     @ViewBuilder
     private var searchModeContent: some View {
-        if usesCustomSearchField {
+        switch searchFieldType {
+        case .searchable:
+            fruitsList
+                .searchable(text: $searchText, prompt: "Search fruits")
+                .toolbar {
+                    trailingButtons
+                }
+
+        case .customInToolbar:
             fruitsList
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         customSearchField
+                            // ツールバーはアイテムに幅を提案せず固有サイズをそのまま使うため、
+                            // maxWidth: .infinity では広がらない。空きスペースぶんの幅を明示的に指定する。
+                            .frame(width: max(0, barContentWidth - toolbarReservedWidth))
                     }
                     trailingButtons
-                    
+
                     ToolbarItem(placement: .bottomBar) {
                         Button {
                         } label: {
                             Image(systemName: "line.3.horizontal.decrease")
                         }
                     }
-                    
-//                    ToolbarItem(placement: .) {
-//                        Button {
-//                        } label: {
-//                            Image(systemName: "line.3.horizontal.decrease")
-//                        }
-//                    }
                 }
-        } else {
+
+        case .customFloating:
             fruitsList
-                .searchable(text: $searchText, prompt: "Search fruits")
+                // ナビゲーションバーの下に検索バーを浮かせる。
+                // safeAreaInset なので List のスクロール領域はその分だけ縮み、
+                // 検索バーはスクロールしても固定されたままになる。
+                .safeAreaInset(edge: .top) {
+                    floatingSearchField
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
                 .toolbar {
                     trailingButtons
                 }
@@ -72,7 +84,11 @@ struct SearchableScreen: View {
     private var fruitsList: some View {
         List {
             Section("Search Field") {
-                Toggle("Use Custom Search Field", isOn: $usesCustomSearchField)
+                Picker("Search Field Type", selection: $searchFieldType) {
+                    ForEach(SearchFieldType.allCases) { type in
+                        Text(type.title).tag(type)
+                    }
+                }
             }
 
             Section("Fruits") {
@@ -92,7 +108,7 @@ struct SearchableScreen: View {
         } action: { width in
             barContentWidth = width
         }
-        // カスタム時は .principal が優先されるため、タイトルは表示されない。
+        // custom in toolbar 時は .principal が優先されるため、タイトルは表示されない。
         .navigationTitle("Searchable Sample")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -110,6 +126,19 @@ struct SearchableScreen: View {
             } label: {
                 Image(systemName: "plus")
             }
+        }
+    }
+
+    @ViewBuilder
+    private var floatingSearchField: some View {
+        if #available(iOS 26.0, *) {
+            customSearchField
+                .frame(maxWidth: .infinity)
+                .glassEffect(.regular, in: .capsule)
+        } else {
+            customSearchField
+                .frame(maxWidth: .infinity)
+                .background(.regularMaterial, in: .capsule)
         }
     }
 
@@ -138,10 +167,17 @@ struct SearchableScreen: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(.fill.tertiary, in: .capsule)
-        // ツールバーはアイテムに幅を提案せず固有サイズをそのまま使うため、
-        // maxWidth: .infinity では広がらない。空きスペースぶんの幅を明示的に指定する。
-        .frame(width: max(0, barContentWidth - toolbarReservedWidth))
     }
+}
+
+enum SearchFieldType: String, CaseIterable, Identifiable {
+    case searchable
+    case customInToolbar = "custom in toolbar"
+    case customFloating = "custom floating"
+
+    var id: String { rawValue }
+
+    var title: String { rawValue }
 }
 
 #Preview {
