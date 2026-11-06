@@ -27,9 +27,6 @@ struct ContentView: View {
                 Tab("Toolbar", systemImage: "slider.horizontal.3") {
                     ToolbarScreen()
                 }
-                Tab("Searchable", systemImage: "magnifyingglass", role: .prominent) {
-                    SearchableScreen()
-                }
             }
         }
     }

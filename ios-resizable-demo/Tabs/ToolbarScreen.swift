@@ -7,6 +7,7 @@ import SwiftUI
 // ToolbarContent の modifier (placement / visibilityPriority / sharedBackgroundVisibility /
 // contentMarginsRemoved / axisBehavior) を切り替えて挙動を確認できる。
 // バー全体に効く View modifier (minimization / vertical behavior / compression) も同じ画面で切り替える。
+// 検索フィールド (.searchable / principal に置いたカスタム / バー下に浮かせたカスタム) も同じ画面で切り替える。
 
 @available(iOS 27.0, *)
 struct ToolbarScreen: View {
@@ -18,13 +19,19 @@ struct ToolbarScreen: View {
     @State private var customItem = ToolbarItemConfig(placement: .topBarLeading)
     @State private var selectedItem: DemoItem = .icon
 
+    @State private var search = SearchFieldConfig()
+    @State private var searchText = ""
+    @State private var barContentWidth: CGFloat = 0
+    @FocusState private var isSearchFieldFocused: Bool
+
     @State private var tapLog = "(none)"
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         NavigationStack {
-            settingsList
+            searchContent
+                // custom in toolbar 時は .principal が優先されるため、タイトルは表示されない。
                 .navigationTitle("Toolbar")
                 .navigationBarTitleDisplayMode(bar.titleDisplayMode.value)
                 .toolbar {
@@ -38,10 +45,76 @@ struct ToolbarScreen: View {
         }
     }
 
+    // MARK: - Search field
+
+    @ViewBuilder
+    private var searchContent: some View {
+        switch search.type {
+        case .none, .customInToolbar:
+            settingsList
+
+        case .searchable:
+            settingsList
+                .searchable(text: $searchText, prompt: "Search rows")
+
+        case .customFloating:
+            settingsList
+                // ナビゲーションバーの下に検索バーを浮かせる。
+                // safeAreaInset なので List のスクロール領域はその分だけ縮み、
+                // 検索バーはスクロールしても固定されたままになる。
+                .safeAreaInset(edge: .top) {
+                    customSearchField
+                        .frame(maxWidth: .infinity)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
+        }
+    }
+
+    private var customSearchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("Search rows", text: $searchText)
+                .focused($isSearchFieldFocused)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    isSearchFieldFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(.fill.tertiary, in: .capsule)
+    }
+
     // MARK: - Toolbar
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
+        // 0. principal に置いたカスタム検索フィールド
+        // principal にアイテムがあるバーはスクロールで自動的にミニマイズされるので、
+        // 常に表示しておきたいときは .toolbarMinimizationBehavior を .never にする。
+        if search.type == .customInToolbar {
+            ToolbarItem(placement: .principal) {
+                customSearchField
+                    // ツールバーはアイテムに幅を提案せず固有サイズをそのまま使うため、
+                    // maxWidth: .infinity では広がらない。空きスペースぶんの幅を明示的に指定する。
+                    .frame(width: max(0, barContentWidth - search.reservedWidth))
+            }
+        }
+
         // 1. アイコンだけのボタン
         // Image ではなく Label + .iconOnly にしておくと、幅不足で「…」メニューへ畳まれたときに
         // メニュー側ではタイトル (Share) が表示される。
@@ -189,6 +262,18 @@ struct ToolbarScreen: View {
                 config: selectedItemConfig
             )
 
+            Section("Search field") {
+                optionPicker("type", selection: $search.type) { $0.title }
+                if search.type == .customInToolbar {
+                    // 他のツールバーアイテムと両端マージン・アイテム間ギャップのぶん。
+                    // アイテムの表示状態に応じて調整する。
+                    Stepper(value: $search.reservedWidth, in: 0...400, step: 10) {
+                        infoRow("reserved width", "\(Int(search.reservedWidth))")
+                    }
+                }
+                infoRow("search text", searchText.isEmpty ? "(empty)" : searchText)
+            }
+
             Section("Bar (View modifiers)") {
                 optionPicker(".navigationBarTitleDisplayMode", selection: $bar.titleDisplayMode)
                 optionPicker(".toolbarMinimizationBehavior", selection: $bar.minimizationBehavior)
@@ -198,13 +283,32 @@ struct ToolbarScreen: View {
             }
 
             // minimization の挙動を見るためにスクロールできる長さを確保する。
+            // 検索フィールドの入力でこの行を絞り込む。
             Section("Scroll filler") {
-                ForEach(1...30, id: \.self) { index in
-                    Text("Row \(index)")
+                ForEach(filteredRows, id: \.self) { row in
+                    Text(row)
                         .foregroundStyle(.secondary)
                 }
             }
         }
+        .overlay {
+            if filteredRows.isEmpty {
+                ContentUnavailableView.search(text: searchText)
+            }
+        }
+        // ツールバー自体のサイズは直接測れないため、画面幅いっぱいの List で代用する。
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            barContentWidth = width
+        }
+    }
+
+    private var filteredRows: [String] {
+        let rows = (1...30).map { "Row \($0)" }
+        return searchText.isEmpty
+            ? rows
+            : rows.filter { $0.localizedCaseInsensitiveContains(searchText) }
     }
 
     @ViewBuilder
@@ -462,6 +566,24 @@ private struct ToolbarItemConfigSection: View {
         #else
         unavailableRow(".axisBehavior", "requires iOS 27.1 SDK")
         #endif
+    }
+}
+
+// MARK: - Search field configuration
+
+struct SearchFieldConfig {
+    var type: SearchFieldType = .none
+    /// principal に置くときに、検索フィールド以外のアイテムとマージンのために空けておく幅。
+    var reservedWidth: CGFloat = 150
+
+    enum SearchFieldType: String, CaseIterable, Identifiable {
+        case none
+        case searchable
+        case customInToolbar = "custom in toolbar"
+        case customFloating = "custom floating"
+
+        var id: String { rawValue }
+        var title: String { rawValue }
     }
 }
 
