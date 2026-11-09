@@ -3,7 +3,7 @@ import SwiftUI
 // `canImport(SwiftUI, _version: 8.0.85)` は iOS 27.1 SDK (Xcode 27.1) 以上で真になる。
 // Xcode 27.0 (iOS 27.0 SDK) でもビルドできるよう、27.1 で追加された API だけこの条件で分けている。
 //
-// この画面では 5 種類のツールバーアイテムを置き、それぞれに独立して
+// この画面では 6 種類のツールバーアイテムを置き、それぞれに独立して
 // ToolbarContent の modifier (placement / visibilityPriority / sharedBackgroundVisibility /
 // contentMarginsRemoved / axisBehavior) を切り替えて挙動を確認できる。
 // バー全体に効く View modifier (minimization / vertical behavior / compression) も同じ画面で切り替える。
@@ -17,7 +17,11 @@ struct ToolbarScreen: View {
     @State private var overflowMenu = ToolbarItemConfig(placement: .automatic)
     @State private var groupItem = ToolbarItemConfig(placement: .topBarTrailing)
     @State private var customItem = ToolbarItemConfig(placement: .topBarLeading)
+    // principal に置くとタイトルが隠れるので既定では非表示にしておく。
+    @State private var segmentedItem = ToolbarItemConfig(placement: .principal, isVisible: false)
+    @State private var segmented = SegmentedPickerConfig()
     @State private var selectedItem: DemoItem = .icon
+    @State private var selectedSegment: DemoSegment = .day
 
     @State private var search = SearchFieldConfig()
     @State private var searchText = ""
@@ -31,7 +35,8 @@ struct ToolbarScreen: View {
     var body: some View {
         NavigationStack {
             searchContent
-                // custom in toolbar 時は .principal が優先されるため、タイトルは表示されない。
+                // .principal にアイテム (Segmented Picker / custom in toolbar の検索フィールド) があるときは
+                // そちらが優先されるため、タイトルは表示されない。
                 .navigationTitle("Toolbar")
                 .navigationBarTitleDisplayMode(bar.titleDisplayMode.value)
                 .toolbar {
@@ -218,6 +223,38 @@ struct ToolbarScreen: View {
             }
             .toolbarItemConfiguration(customItem)
         }
+
+        // 6. Segmented Picker (既定で principal)
+        // principal に置くとナビゲーションタイトルの代わりに表示され、バーはスクロールで自動的にミニマイズされる。
+        // ツールバーは固有サイズをそのまま使うので、セグメントの数とラベル長でそのまま幅が決まり、
+        // 幅が足りないとラベルが「…」に省略される。SwiftUI 側に縮小方法を指定する API はないため、
+        // ラベルの種類 (text / short / icon / Label) と controlSize を切り替えて省略されにくさを比較する。
+        // セグメント内の Text に付けた .font / .minimumScaleFactor は UISegmentedControl に渡らず効かない。
+        if segmentedItem.isVisible {
+            if let sizing = segmentedItem.spacerBefore.sizing {
+                ToolbarSpacer(sizing, placement: segmentedItem.placement.value)
+            }
+            ToolbarItem(placement: segmentedItem.placement.value) {
+                Picker("Segment", selection: $selectedSegment) {
+                    ForEach(DemoSegment.allCases) { segment in
+                        segmentLabel(segment).tag(segment)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .controlSize(segmented.controlSize.value)
+            }
+            .toolbarItemConfiguration(segmentedItem)
+        }
+    }
+
+    @ViewBuilder
+    private func segmentLabel(_ segment: DemoSegment) -> some View {
+        switch segmented.labelStyle {
+        case .text: Text(segment.title)
+        case .short: Text(segment.shortTitle)
+        case .icon: Image(systemName: segment.systemImage)
+        case .label: Label(segment.title, systemImage: segment.systemImage)
+        }
     }
 
     // SF Symbols ではない独自描画の画像。テンプレート扱いされないのでそのままの色で表示される。
@@ -246,6 +283,7 @@ struct ToolbarScreen: View {
         List {
             Section("Info") {
                 infoRow("last tap", tapLog)
+                infoRow("segment", selectedSegment.title)
                 infoRow("horizontalSizeClass", horizontalSizeClass.map { String(describing: $0) } ?? "nil")
                 #if canImport(SwiftUI, _version: 8.0.85)
                 if #available(iOS 27.1, *) {
@@ -254,12 +292,13 @@ struct ToolbarScreen: View {
                 #endif
             }
 
-            // 5 つのアイテムの設定は Segmented Picker で対象を切り替えて 1 つの Section に表示する。
+            // 6 つのアイテムの設定は Segmented Picker で対象を切り替えて 1 つの Section に表示する。
             // 設定値自体はアイテムごとに独立して保持されるので、切り替えても失われない。
             ToolbarItemConfigSection(
                 item: selectedItem,
                 selection: $selectedItem,
-                config: selectedItemConfig
+                config: selectedItemConfig,
+                segmented: $segmented
             )
 
             Section("Search field") {
@@ -337,17 +376,19 @@ extension ToolbarScreen {
         case .overflow: $overflowMenu
         case .group: $groupItem
         case .custom: $customItem
+        case .segmented: $segmentedItem
         }
     }
 }
 
-/// 設定対象として選べる 5 つのツールバーアイテム。
+/// 設定対象として選べる 6 つのツールバーアイテム。
 enum DemoItem: String, CaseIterable, Identifiable {
     case icon
     case edit
     case overflow
     case group
     case custom
+    case segmented
 
     var id: String { rawValue }
 
@@ -359,6 +400,7 @@ enum DemoItem: String, CaseIterable, Identifiable {
         case .overflow: "Overflow"
         case .group: "Group"
         case .custom: "Custom"
+        case .segmented: "Seg"
         }
     }
 
@@ -369,12 +411,75 @@ enum DemoItem: String, CaseIterable, Identifiable {
         case .overflow: "3. ToolbarOverflowMenu"
         case .group: "4. ToolbarItemGroup (2 icons)"
         case .custom: "5. Custom Image + Text"
+        case .segmented: "6. Segmented Picker (4 segments)"
         }
     }
 
     // ToolbarOverflowMenu は placement を受け取らない。
     var supportsPlacement: Bool {
         self != .overflow
+    }
+}
+
+/// Segmented Picker のツールバーアイテムに並べる 4 つのセグメント。
+enum DemoSegment: String, CaseIterable, Identifiable {
+    case day
+    case week
+    case month
+    case year
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+
+    /// 幅が足りないときに使う 1 文字のラベル。
+    var shortTitle: String { String(title.prefix(1)) }
+
+    var systemImage: String {
+        switch self {
+        case .day: "sun.max"
+        case .week: "calendar"
+        case .month: "moon"
+        case .year: "globe"
+        }
+    }
+}
+
+/// Segmented Picker アイテム固有の設定。幅不足で「…」に省略されるのをどう避けるかを比較するためのもの。
+struct SegmentedPickerConfig {
+    var labelStyle: LabelStyle = .text
+    var controlSize: ControlSizeOption = .regular
+
+    enum LabelStyle: String, CaseIterable, Identifiable {
+        /// Text のみ (Day / Week / ...)
+        case text
+        /// 1 文字の Text (D / W / ...)
+        case short
+        /// Image のみ
+        case icon
+        /// Label (title + systemImage)。アイコンと文字のどちらが表示されるかは OS 側の挙動を確認する。
+        case label
+
+        var id: String { rawValue }
+    }
+
+    enum ControlSizeOption: String, CaseIterable, Identifiable {
+        case mini
+        case small
+        case regular
+        case large
+        case extraLarge
+
+        var id: String { rawValue }
+
+        var value: ControlSize {
+            switch self {
+            case .mini: .mini
+            case .small: .small
+            case .regular: .regular
+            case .large: .large
+            case .extraLarge: .extraLarge
+            }
+        }
     }
 }
 
@@ -390,8 +495,9 @@ struct ToolbarItemConfig {
     var axisBehavior: AxisBehavior = .automatic
     var spacerBefore: SpacerBefore = .none
 
-    init(placement: Placement) {
+    init(placement: Placement, isVisible: Bool = true) {
         self.placement = placement
+        self.isVisible = isVisible
     }
 
     enum Placement: String, CaseIterable, Identifiable {
@@ -530,6 +636,7 @@ private struct ToolbarItemConfigSection: View {
     let item: DemoItem
     @Binding var selection: DemoItem
     @Binding var config: ToolbarItemConfig
+    @Binding var segmented: SegmentedPickerConfig
 
     var body: some View {
         Section {
@@ -550,6 +657,10 @@ private struct ToolbarItemConfigSection: View {
             Toggle(".contentMarginsRemoved", isOn: $config.contentMarginsRemoved)
             optionPicker("ToolbarSpacer (before)", selection: $config.spacerBefore)
             axisBehaviorRow
+            if item == .segmented {
+                optionPicker("segment label", selection: $segmented.labelStyle)
+                optionPicker(".controlSize", selection: $segmented.controlSize)
+            }
         } header: {
             Text("Item: \(item.title)")
         }
