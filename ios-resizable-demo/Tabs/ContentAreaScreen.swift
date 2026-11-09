@@ -69,6 +69,10 @@ struct ContentAreaGeometryView: View {
     @State private var reservedRegions: [UIView.ReservedRegion] = []
     #endif
     @State private var cornerInsets = RectangleCornerInsets()
+    #if canImport(SwiftUI, _version: 8.0.85)
+    // contentMargins(for: .container) read from the full-bleed view
+    @State private var fullBleedContentMargins = EdgeInsets()
+    #endif
 
     var body: some View {
         GeometryReader { proxy in
@@ -78,27 +82,32 @@ struct ContentAreaGeometryView: View {
                 height: proxy.size.height + safeAreaInsets.top + safeAreaInsets.bottom
             )
 
-            ZStack(alignment: .topLeading) {
-                Color.orange
+            // The info card stays centered in the regular safe area and scrolls internally,
+            // while the geometry marks below are drawn over the full container bounds
+            infoCard(proxy: proxy, safeAreaInsets: safeAreaInsets, safeAreaSize: proxy.size, fullSize: fullSize)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(alignment: .topLeading) {
+                ZStack(alignment: .topLeading) {
+                    Color.orange
 
-                Color.cyan
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .offset(x: safeAreaInsets.leading, y: safeAreaInsets.top)
+                    Color.cyan
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .offset(x: safeAreaInsets.leading, y: safeAreaInsets.top)
 
-                cornerMark(cornerInsets.topLeading, alignment: .topLeading)
-                cornerMark(cornerInsets.topTrailing, alignment: .topTrailing)
-                cornerMark(cornerInsets.bottomLeading, alignment: .bottomLeading)
-                cornerMark(cornerInsets.bottomTrailing, alignment: .bottomTrailing)
+                    cornerMark(cornerInsets.topLeading, alignment: .topLeading)
+                    cornerMark(cornerInsets.topTrailing, alignment: .topTrailing)
+                    cornerMark(cornerInsets.bottomLeading, alignment: .bottomLeading)
+                    cornerMark(cornerInsets.bottomTrailing, alignment: .bottomTrailing)
 
-                #if canImport(SwiftUI, _version: 8.0.85)
-                reservedRegionMarks
-                #endif
-
-                infoPanel(safeAreaInsets: safeAreaInsets, safeAreaSize: proxy.size, fullSize: fullSize)
+                    #if canImport(SwiftUI, _version: 8.0.85)
+                    contentMarginsMark(fullSize: fullSize)
+                    reservedRegionMarks
+                    #endif
+                }
+                .frame(width: fullSize.width, height: fullSize.height)
+                // Shift the drawing space so its origin matches the full container bounds
+                .offset(x: -safeAreaInsets.leading, y: -safeAreaInsets.top)
             }
-            .frame(width: fullSize.width, height: fullSize.height)
-            // Shift the drawing space so its origin matches the full container bounds
-            .offset(x: -safeAreaInsets.leading, y: -safeAreaInsets.top)
         }
         .background {
             fullBleedReader
@@ -109,6 +118,13 @@ struct ContentAreaGeometryView: View {
                 } action: { newValue in
                     cornerInsets = newValue
                 }
+                #if canImport(SwiftUI, _version: 8.0.85)
+                .onGeometryChange(for: EdgeInsets.self) { fullProxy in
+                    fullProxy.contentMargins(for: .container)
+                } action: { newValue in
+                    fullBleedContentMargins = newValue
+                }
+                #endif
                 .ignoresSafeArea()
         }
     }
@@ -129,6 +145,19 @@ struct ContentAreaGeometryView: View {
             .frame(width: size.width, height: size.height)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
     }
+
+    #if canImport(SwiftUI, _version: 8.0.85)
+    private func contentMarginsMark(fullSize: CGSize) -> some View {
+        let margins = fullBleedContentMargins
+        return Rectangle()
+            .strokeBorder(Color.green, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+            .frame(
+                width: max(fullSize.width - margins.leading - margins.trailing, 0),
+                height: max(fullSize.height - margins.top - margins.bottom, 0)
+            )
+            .offset(x: margins.leading, y: margins.top)
+    }
+    #endif
 
     #if canImport(SwiftUI, _version: 8.0.85)
     private var reservedRegionMarks: some View {
@@ -154,7 +183,23 @@ struct ContentAreaGeometryView: View {
     }
     #endif
 
-    private func infoPanel(safeAreaInsets: EdgeInsets, safeAreaSize: CGSize, fullSize: CGSize) -> some View {
+    private func infoCard(proxy: GeometryProxy, safeAreaInsets: EdgeInsets, safeAreaSize: CGSize, fullSize: CGSize) -> some View {
+        let panel = infoPanel(proxy: proxy, safeAreaInsets: safeAreaInsets, safeAreaSize: safeAreaSize, fullSize: fullSize)
+
+        // Show the panel as-is when it fits in the safe area; otherwise scroll inside the card
+        return ViewThatFits(in: .vertical) {
+            panel
+            ScrollView {
+                panel
+            }
+        }
+        .frame(width: min(360, max(safeAreaSize.width - 32, 0)))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .padding(16)
+    }
+
+    private func infoPanel(proxy: GeometryProxy, safeAreaInsets: EdgeInsets, safeAreaSize: CGSize, fullSize: CGSize) -> some View {
         VStack(spacing: 8) {
             Toggle("Add navigation title", isOn: $addNavigationTitle)
                 .fixedSize()
@@ -164,10 +209,7 @@ struct ContentAreaGeometryView: View {
                 .padding(.bottom, 8)
 
             heading("safeAreaInsets", color: .orange)
-            Text("top: \(points(safeAreaInsets.top))")
-            Text("leading: \(points(safeAreaInsets.leading))")
-            Text("bottom: \(points(safeAreaInsets.bottom))")
-            Text("trailing: \(points(safeAreaInsets.trailing))")
+            insetsRows(safeAreaInsets)
 
             heading("size", color: .cyan)
                 .padding(.top, 8)
@@ -182,6 +224,16 @@ struct ContentAreaGeometryView: View {
             Text("bottomTrailing: \(sizeText(cornerInsets.bottomTrailing))")
 
             #if canImport(SwiftUI, _version: 8.0.85)
+            heading("contentMargins(for: .container)", color: .green)
+                .padding(.top, 8)
+            Text("full bleed")
+                .font(.subheadline)
+            insetsRows(fullBleedContentMargins)
+            Text("safe area")
+                .font(.subheadline)
+                .padding(.top, 4)
+            insetsRows(proxy.contentMargins(for: .container))
+
             heading("reservedRegions", color: .red)
                 .padding(.top, 8)
             if reservedRegions.isEmpty {
@@ -196,8 +248,14 @@ struct ContentAreaGeometryView: View {
             #endif
         }
         .padding(24)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func insetsRows(_ insets: EdgeInsets) -> some View {
+        Text("top: \(points(insets.top))")
+        Text("leading: \(points(insets.leading))")
+        Text("bottom: \(points(insets.bottom))")
+        Text("trailing: \(points(insets.trailing))")
     }
 
     private func heading(_ title: String, color: Color) -> some View {
