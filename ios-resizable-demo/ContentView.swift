@@ -23,6 +23,9 @@ struct ContentView: View {
             Tab("Arrangement View", systemImage: "rectangle.split.2x1") {
                 ArrangementViewScreen()
             }
+            Tab("Camera", systemImage: "camera") {
+                CameraScreen()
+            }
             if #available(anyAppleOS 27.0, *) {
                 Tab("Toolbar", systemImage: "slider.horizontal.3") {
                     ToolbarScreen()
